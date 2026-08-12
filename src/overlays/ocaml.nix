@@ -28,9 +28,16 @@ let
       nativeBuildInputs = [ nixpkgsOcamlPackages.ocaml ];
     };
 
-    ocaml = oa: {
-      opam__ocaml_config__share = "${final.ocaml-config}/share/ocaml-config";
-    };
+    # `ocaml-config` is only in the scope when some package actually depends on
+    # it, and it is what provides the `%{ocaml-config:share}%` substitution. In
+    # the `ocaml-compiler` repository layout (OCaml >= 5.5), nothing along the
+    # `ocaml` -> `ocaml-variants` -> `ocaml-compiler` chain depends on it, so
+    # the variable must simply be left unset.
+    ocaml =
+      _:
+      lib.optionalAttrs (prev ? ocaml-config) {
+        opam__ocaml_config__share = "${final.ocaml-config}/share/ocaml-config";
+      };
 
     camlp4 = oa: {
       # Point to the real installation directory
