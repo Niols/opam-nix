@@ -376,6 +376,25 @@ rec {
   /**
     `Dir → Dir`
 
+    Removes `files` directories that sit next to an opam file. Those hold that
+    package's extra-files (patches, scripts, `.install` files), which are not
+    package definitions and must not be mistaken for one. A `files` directory
+    that is not next to an opam file is an ordinary directory and is descended
+    into as usual.
+  */
+  pruneExtraFilesDirs =
+    dir:
+    let
+      hasOpamFile =
+        length (filter (name: !isAttrs dir.${name} && hasSuffix "opam" name) (attrNames dir)) > 0;
+      dir' =
+        if hasOpamFile && isAttrs (dir.files or null) then builtins.removeAttrs dir [ "files" ] else dir;
+    in
+    mapAttrs (_: value: if isAttrs value then pruneExtraFilesDirs value else value) dir';
+
+  /**
+    `Dir → Dir`
+
     Takes the attrset produced by `readDir` or `readDirRecursive`
     and leaves only `opam` files in (files named `opam` or `*.opam`).
   */
@@ -384,7 +403,7 @@ rec {
     converge (filterAttrsRecursive (_: v: v != { })) (
       filterAttrsRecursive (
         name: value: isAttrs value || ((value == "regular" || value == "symlink") && hasSuffix "opam" name)
-      ) files
+      ) (pruneExtraFilesDirs files)
     );
 
   /**
@@ -421,6 +440,15 @@ rec {
               source = root + subdir;
               opamFile = "${root + ("/" + (concatStringsSep "/" path'))}";
               opamFileContents = readFile opamFile;
+
+              # A `files` directory only holds opam's extra-files when the opam
+              # file sits in a repository-shaped metadata directory
+              # (`…/<name>.<version>/opam`). In a project checkout the opam file
+              # is at the root, and `./files` is an ordinary source directory
+              # which must not be copied over the source tree.
+              isRepoShaped = fileName == "opam" && dirName.version != "";
+              filesDir = source + "/files";
+              hasFiles = isRepoShaped && pathExists filesDir;
             }
           ]) opamFiles
         )
@@ -454,9 +482,26 @@ rec {
           };
         }
       ) { } packages;
+      # A package's extra-files can not be carried inside `repo` itself: its
+      # entries are `linkFarm` symlinks, and `contentAddressedIFD` re-imports
+      # them as symlinks while discarding their string context, so the target
+      # would not be an input of the build that needs it. Like `sourceMap`, this
+      # is therefore passed out of band, straight from the original directory.
+      # https://opam.ocaml.org/doc/Manual.html#opamfield-extra-files
+      filesMap = foldl (
+        acc: x:
+        recursiveUpdate acc {
+          ${x.name} = {
+            ${x.version} = contentAddressedIFD x.filesDir;
+          };
+        }
+      ) { } (filter (x: x.hasFiles) packages);
       repo = linkFarm "opam-repo" ([ repo-description ] ++ opamFileLinks);
     in
-    repo // { passthru = { inherit sourceMap pkgdefs; }; };
+    repo
+    // {
+      passthru = { inherit sourceMap pkgdefs filesMap; };
+    };
 
   makeOpamRepo' = recursive: if recursive then makeOpamRepoRec else makeOpamRepo;
 
@@ -589,7 +634,11 @@ rec {
         let
           pkgDir = findPackageInRepo name version;
 
+          # `files/` as found in a real opam-repository, next to the opam file.
           filesPath = contentAddressedIFD (pkgDir repo + "/files");
+          # A repository built by `constructOpamRepo` can not carry `files/`
+          # inline, so it reports extra-files through `passthru.filesMap`.
+          localFilesPath = repo.passthru.filesMap.${name}.${version} or null;
           repos' = filter (repo: repo ? passthru.pkgdefs.${name}.${version} || !isNull (pkgDir repo)) repos;
           repo =
             if length repos' > 0 then
@@ -609,6 +658,9 @@ rec {
         }
         // optionalAttrs (pathExists (pkgDir repo + "/files")) {
           files = filesPath;
+        }
+        // optionalAttrs (!isNull localFilesPath) {
+          files = localFilesPath;
         }
         // optionalAttrs isLocal {
           src = repo.passthru.sourceMap.${name}.${version};
