@@ -215,7 +215,9 @@ pkgs
   "libmad0-dev" = libmad;
   "libmagic-dev" = file;
   "libmagickcore-dev" = imagemagick.dev;
-  "libmariadb-dev" = mariadb;
+  # The debian `libmariadb-dev` is the client library and its `libmariadb.pc`,
+  # which in nixpkgs is the connector, not the `mariadb` server package.
+  "libmariadb-dev" = mariadb-connector-c.dev;
   "libmaxminddb-dev" = libmaxminddb;
   "libmbedtls-dev" = mbedtls;
   "libmecab-dev" = mecab;
