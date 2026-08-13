@@ -46,6 +46,18 @@ let
       '';
     };
 
+    # `melc` looks for its own stdlib at `$prefix/lib/melange/melange` and
+    # `$prefix/lib/melange/js/melange` (see `melc -where`), a path baked in at
+    # build time. The artifacts are installed under `$OCAMLFIND_DESTDIR`, which
+    # is `$prefix/lib` in a regular opam switch -- so the two coincide there --
+    # but `$out/lib/ocaml/<version>/site-lib` here, so they do not. Without
+    # this, every single melange compilation fails with `Unbound module Stdlib`.
+    melange = oa: {
+      postInstall = (oa.postInstall or "") + ''
+        ln -s "$OCAMLFIND_DESTDIR/melange" "$out/lib/melange"
+      '';
+    };
+
     # Attempts to install to ocaml root
     num =
       if lib.versionAtLeast prev.num.version "1.4" then
