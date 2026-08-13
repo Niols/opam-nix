@@ -52,6 +52,20 @@ let
     ];
   };
 
+  # Debian's `libsnmp-dev` ships the headers *and* the `libnetsnmp.so` link
+  # symlink, and depends on `libssl-dev` because net-snmp's own public headers
+  # include openssl's (net-snmp/library/scapi.h does
+  # `#include <openssl/ossl_typ.h>`). In nixpkgs those are three separate paths,
+  # and a debian name maps to a single package, so join them.
+  netSnmp' = buildEnv {
+    name = "net-snmp-dev-combined";
+    paths = [
+      net-snmp.dev
+      net-snmp.lib
+      openssl.dev
+    ];
+  };
+
   xorg-dev = buildEnv {
     name = "xorg-combined";
     ignoreCollisions = true;
@@ -280,7 +294,7 @@ pkgs
   "libshine-dev" = shine;
   "libshp-dev" = shapelib;
   "libsnappy-dev" = snappy.dev;
-  "libsnmp-dev" = net-snmp.dev;
+  "libsnmp-dev" = netSnmp';
   "libsodium-dev" = libsodium.dev;
   "libsoundtouch-dev" = soundtouch;
   "libsource-highlight-dev" = sourceHighlight.dev;
