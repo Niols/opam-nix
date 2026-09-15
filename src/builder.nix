@@ -170,17 +170,21 @@ originalPkgdef: resolveEnv: {
 
         extInputNames = filterList versionResolutionVars good-depexts;
 
-        extInputs = map (
-          x:
-          if isString x then
-            externalPackages.${x} or (warn ''
-              [opam-nix] External dependency ${x} of package ${name}.${version} is missing.
-              Please, add it to the file <opam-nix>/overlays/external/${globalVariables.os-distribution}.nix and make a pull request with your change.
-              In the meantime, you can manually add the dependency to buildInputs/nativeBuildInputs of your derivation with overrideAttrs.
-            '' null)
-          else
-            null
-        ) extInputNames;
+        # A depext may map to several packages, hence the `flatten`: a nested
+        # list in `buildInputs` is deprecated in nixpkgs.
+        extInputs = flatten (
+          map (
+            x:
+            if isString x then
+              externalPackages.${x} or (warn ''
+                [opam-nix] External dependency ${x} of package ${name}.${version} is missing.
+                Please, add it to the file <opam-nix>/overlays/external/${globalVariables.os-distribution}.nix and make a pull request with your change.
+                In the meantime, you can manually add the dependency to buildInputs/nativeBuildInputs of your derivation with overrideAttrs.
+              '' null)
+            else
+              null
+          ) extInputNames
+        );
 
         inherit (getUrl deps.nixpkgs pkgdef) archive src;
 
