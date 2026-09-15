@@ -66,6 +66,21 @@ let
     ];
   };
 
+  # `gnutls.pc` declares `Requires.private: nettle, hogweed, libtasn1,
+  # libidn2, p11-kit-1, zlib`, but nixpkgs' `gnutls` only propagates
+  # `nettle`, so `libtasn1.pc` and `p11-kit-1.pc` are nowhere to be found.
+  # `pkgconf` -- which many systems now ship as their `pkg-config`, and which,
+  # unlike freedesktop's `pkg-config`, resolves private requires even for a
+  # plain `--cflags`/`--libs` query -- therefore refuses to answer anything at
+  # all about gnutls, or about any package that requires it.
+  # Debian's `libgnutls28-dev` depends on `libtasn1-6-dev` and
+  # `libp11-kit-dev`, so add them alongside.
+  gnutls-dev = [
+    gnutls.dev
+    libtasn1.dev
+    p11-kit.dev
+  ];
+
   xorg-dev = buildEnv {
     name = "xorg-combined";
     ignoreCollisions = true;
@@ -152,7 +167,7 @@ pkgs
   "libc6-dev" = glibc.dev;
   "libcairo2-dev" = cairo.dev;
   "libcapnp-dev" = capnproto;
-  "libcurl4-gnutls-dev" = curlWithGnuTls.dev;
+  "libcurl4-gnutls-dev" = [ curlWithGnuTls.dev ] ++ gnutls-dev;
   "libcurl4-openssl-dev" = curlFull.dev;
   "libdw-dev" = elfutils.dev;
   "libev-dev" = libev;
@@ -188,7 +203,7 @@ pkgs
   "libglu1-mesa-dev" = libGL.dev;
   "libgmp-dev" = gmp.dev;
   "libgnomecanvas2-dev" = gnome2.libgnomecanvas.dev;
-  "libgnutls28-dev" = gnutls.dev;
+  "libgnutls28-dev" = gnutls-dev;
   "libgoocanvas-2.0-dev" = goocanvas2.dev;
   "libgoogle-perftools-dev" = gperftools;
   "libgrib-api-dev" = grib-api;
