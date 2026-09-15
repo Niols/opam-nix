@@ -29,6 +29,8 @@ let
 
   inherit (bootstrapPackages) lib;
 
+  inherit (lib.strings) sanitizeDerivationName;
+
   inherit (lib)
     splitString
     tail
@@ -76,7 +78,27 @@ let
   # Pkgdef -> Derivation
   builder = import ./builder.nix bootstrapPackages.lib;
 
-  contentAddressedIFD = dir: deepSeq (readDir dir) (/. + builtins.unsafeDiscardStringContext dir);
+  contentAddressedIFD =
+    dir:
+    deepSeq (readDir dir) (
+      let
+        base = baseNameOf dir;
+        sane = sanitizeDerivationName base;
+      in
+      # Coercing a path to a string copies it into the store under its own base
+      # name. A repository-shaped package directory ends in the opam version,
+      # which may contain a tilde: legal in an opam version, but an illegal
+      # character in a store path name, so the coercion would throw. Name such
+      # a copy explicitly instead. Only a name that is not already valid takes
+      # this branch, so no source that used to work moves store path.
+      if builtins.isPath dir && sane != base then
+        builtins.path {
+          path = dir;
+          name = sane;
+        }
+      else
+        /. + builtins.unsafeDiscardStringContext dir
+    );
 
   global-variables = import ./global-variables.nix bootstrapPackages.stdenv.hostPlatform;
 
