@@ -356,6 +356,7 @@ originalPkgdef: resolveEnv: {
         buildInputs = extInputs ++ ocamlInputs;
 
         withFakeOpam = true;
+        fakeOpam = if fa.withFakeOpam then fake-opam else null;
 
         nativeBuildInputs =
           extInputs
@@ -494,6 +495,8 @@ originalPkgdef: resolveEnv: {
               done | sort | uniq | sed 's/$/ /g' > "$out/nix-support/propagated-build-inputs"
 
               for input in $nativeBuildInputs; do
+                # the fake opam reads this package's variables; dependents have their own
+                [[ $input == "''${fakeOpam-}" ]] && continue
                 printf "$input\n"
                 [ -f "$input/nix-support/is-opam-nix-package" ] || continue
                 for subinput in $(cat "$input/nix-support/propagated-native-build-inputs"); do
