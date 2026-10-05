@@ -460,7 +460,13 @@ originalPkgdef: resolveEnv: {
           rmdir -p "bin" 2>/dev/null || true
           rmdir -p "$OCAMLFIND_DESTDIR/stublibs" 2>/dev/null || true
           rmdir -p "$OCAMLFIND_DESTDIR" 2>/dev/null || true
-          rmdir -p "share/man/man*" 2>/dev/null || true
+          # without `with-doc`, this only holds the README, LICENSE, etc. that
+          # the `.install` file lists, and it would keep `share` alive;
+          # opam-installer writes it to `doc`, and `%{doc}%` is `share/doc`
+          if [[ -z "$doDoc" ]]; then
+            rm -rf "doc" "share/doc"
+          fi
+          rmdir share/man/man* 2>/dev/null || true
           rmdir -p "share/man" 2>/dev/null || true
           rmdir -p "share" 2>/dev/null || true
           popd
