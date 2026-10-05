@@ -513,10 +513,10 @@ originalPkgdef: resolveEnv: {
               ( set -o posix; set ) | grep "^opam__''${OPAM_PACKAGE_NAME_}__[a-zA-Z0-9_]*=" | exportIfUnset > "$out/nix-support/setup-hook"
 
               if [[ -d "$OCAMLFIND_DESTDIR" ]]; then
-                printf '%s%s\n' ${escapeShellArg "export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}"} "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
+                printf ${escapeShellArg "[[ \":\${OCAMLPATH-}:\" == *\":%s:\"* ]] || export OCAMLPATH=\${OCAMLPATH-}\${OCAMLPATH:+:}%s\n"} "$OCAMLFIND_DESTDIR" "$OCAMLFIND_DESTDIR" >> $out/nix-support/setup-hook
               fi
               if [[ -d "$OCAMLFIND_DESTDIR/stublibs" ]]; then
-                printf '%s%s\n' ${escapeShellArg "export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}"} "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
+                printf ${escapeShellArg "[[ \":\${CAML_LD_LIBRARY_PATH-}:\" == *\":%s:\"* ]] || export CAML_LD_LIBRARY_PATH=\${CAML_LD_LIBRARY_PATH-}\${CAML_LD_LIBRARY_PATH:+:}%s\n"} "$OCAMLFIND_DESTDIR/stublibs" "$OCAMLFIND_DESTDIR/stublibs" >> "$out/nix-support/setup-hook"
               fi
               printf '%s\n' ${
                 escapeShellArg (envToShell pkgdef.set-env.section or [ ])
